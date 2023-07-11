@@ -1,0 +1,106 @@
+version: '3.7'
+
+services:
+    ids:
+        hostname: 'IDS'
+        privileged: true
+        container_name : IDS
+        image: srx-labo-3
+        build: .
+        cap_add : 
+            - NET_ADMIN 
+        stdin_open: true
+        tty: true
+        ports:
+            - 3000:3000
+        volumes:
+            - shared-data:/var/log/snort
+        networks:
+           snortlan:
+             ipv4_address: 192.168.220.2
+        command: /bin/bash
+        sysctls:
+            net.ipv4.conf.all.send_redirects: '0'
+            net.ipv4.conf.all.secure_redirects: '0'
+            net.ipv4.conf.all.accept_redirects: '0'
+            net.ipv4.conf.default.send_redirects: '0'
+            net.ipv4.conf.eth0.send_redirects: '0'
+
+    client:
+        hostname: 'Client'
+        privileged: true
+        container_name : Client
+        image: srx-labo-3
+        build: .
+        cap_add : 
+            - NET_ADMIN
+        depends_on: 
+            - ids
+        stdin_open: true
+        tty: true
+        networks:
+           snortlan:
+             ipv4_address: 192.168.220.3
+        command: /bin/bash
+        sysctls:
+            net.ipv4.conf.all.send_redirects: '0'
+            net.ipv4.conf.all.secure_redirects: '0'
+            net.ipv4.conf.all.accept_redirects: '0'
+            net.ipv4.conf.default.send_redirects: '0'
+            net.ipv4.conf.eth0.send_redirects: '0'
+
+    wireshark:
+        image: lscr.io/linuxserver/wireshark
+        container_name: wireshark
+        cap_add:
+            - NET_ADMIN
+        volumes:
+            - shared-data:/var/log/snort
+        network_mode: service:ids
+        environment:
+            - PUID=0
+            - PGID=0
+            - TZ=Europe/Zurich
+        #ports:
+        #    - 3000:3000
+        restart: unless-stopped
+
+    firefox:
+        hostname: 'firefox'
+        image: lscr.io/linuxserver/firefox
+        container_name: firefox
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=Europe/Zurich
+    #volumes:
+    #  - /path/to/config:/config
+        networks:
+           snortlan:
+             ipv4_address: 192.168.220.4
+        ports:
+            - 4000:3000
+        shm_size: "1gb"
+        cap_add : 
+            - NET_ADMIN
+        depends_on: 
+            - ids
+        sysctls:
+            net.ipv4.conf.all.send_redirects: '0'
+            net.ipv4.conf.all.secure_redirects: '0'
+            net.ipv4.conf.all.accept_redirects: '0'
+            net.ipv4.conf.default.send_redirects: '0'
+            net.ipv4.conf.eth0.send_redirects: '0'
+        restart: unless-stopped
+
+volumes:
+  shared-data:
+
+networks:
+    snortlan:
+        driver: "bridge"
+        name: snortlan
+        ipam:
+            config:
+                - 
+                 subnet: 192.168.220.0/24
